@@ -54,7 +54,7 @@ sub __get_service_data {
 sub __process_service_data {
 	my ( $self, $d ) = @_;
 
-	$self->{ __cache }->{ data } = 
+	@{ $self->{ __cache }->{ data } } = 
 		map {	
 			$_ 
 			#WWW::MelbourneBikeShare::Terminal->new( $_ )
@@ -65,16 +65,16 @@ sub __process_service_data {
 }
 
 sub __get {
-        my ( $self, %args ) = @_; 
+        my ( $self, $url ) = @_; 
 
-        my $r = $self->{ __ua }->get( $args{ url } );
+        my $r = $self->{ __ua }->get( $url );
 
         if ( $r->is_success ) { 
                 $self->{ error } = ''; 
                 return from_json( $r->content );
         }
         else {
-                $self->{ error } = "Unable to retrieve $args{ text }: "
+                $self->{ error } = "Unable to retrieve $url: "
                         . $r->status_line . "\n";
                 return 0
         }
@@ -89,9 +89,9 @@ sub __get_service_uri {
 sub list {
 	my $self = shift;
 
-	return map {
-		
-	} $self->__get_service_data
+	#return map {
+	#	
+	#} $self->__get_service_data
 }
 
 1;
