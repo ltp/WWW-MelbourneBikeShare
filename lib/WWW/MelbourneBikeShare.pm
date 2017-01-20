@@ -5,6 +5,7 @@ use warnings;
 
 use LWP;
 use JSON;
+use WWW::MelbourneBikeShare::Terminal;
 
 our $VERSION = 0.01;
 
@@ -55,10 +56,7 @@ sub __process_service_data {
 	my ( $self, $d ) = @_;
 
 	@{ $self->{ __cache }->{ data } } = 
-		map {	
-			$_ 
-			#WWW::MelbourneBikeShare::Terminal->new( $_ )
-		} @{ $d };
+		map { WWW::MelbourneBikeShare::Terminal->new( $_ ) } @{ $d };
 
 	$self->{ __cache }->{ present } = 1;
 	$self->{ __cache }->{ last_update } = time;
@@ -86,12 +84,62 @@ sub __get_service_uri {
 	return 'https://data.melbourne.vic.gov.au/resource/qnjw-wgaj.json';
 }
 
-sub list {
+sub id {
+	my ( $self, $id ) = @_;
+	
+	$id or return;
+
+	for ( $self->terminals ) {
+		return $_ if $_->id eq $id
+	}
+}
+
+sub __data {
 	my $self = shift;
 
-	#return map {
-	#	
-	#} $self->__get_service_data
+	$self->__get_service_data;
+
+	return @{ $self->{ __cache }->{ data } }
+}
+
+sub terminals {
+	return $_[0]->__data
+}
+
+sub list {
+	return map { $_->id } $_[0]->terminals
+}
+
+sub closest {
+	my ( $self, $lat, $lon ) = @_;
+
+	my @t = map  { $_->[0] }
+		sort { $a->[1] <=> $b->[1] }
+		map  { [ $_, __haversine( $lat, $lon, $_->lat, $_->lon ) ] } 
+		     $self->terminals;
+
+	return $t[0]
+}
+
+sub __asin { 
+	my $x = shift; 
+	atan2( $x, sqrt( 1 - $x * $x ) ) 
+}
+ 
+sub __haversine {
+	my( $lat1, $lon1, $lat2, $lon2 ) = @_;
+
+	my $radius = 6372.8;
+	my $radians = ( 22 / 7 ) / 180;
+	my $dlat = ( $lat2 - $lat1 ) * $radians;
+	my $dlon = ( $lon2 - $lon1 ) * $radians;
+	$lat1 *= $radians;
+	$lat2 *= $radians;
+	my $a = sin( $dlat / 2 )** 2 + cos( $lat1 ) * cos( $lat2 ) 
+		* sin( $dlon / 2 )**2;
+	my $c = 2 * __asin( sqrt( $a ) );
+
+	return $radius * $c;
 }
 
 1;
