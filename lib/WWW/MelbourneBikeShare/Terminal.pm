@@ -42,7 +42,38 @@ sub lat { $_[0]->__point( 1 ) }
 
 sub lon { $_[0]->__point( 0 ) }
 
+sub distance {
+	my ( $self, $lat, $lon ) = @_;
+
+	return unless $lat and $lon;
+
+	return $self->__haversine( $lat, $lon )
+}
+
 sub __point { return $_[0]->{ coordinates }->{ coordinates }->[ $_[1] ] }
+
+sub __asin { 
+        my $x = shift; 
+        atan2( $x, sqrt( 1 - $x * $x ) ) 
+}
+ 
+sub __haversine {
+        my( $self, $lat, $lon ) = @_; 
+
+	my $tlon = $lon;
+        my $radius = 6372.8;
+        my $radians = ( 22 / 7 ) / 180;
+        my $dlat = ( $self->lat - $lat ) * $radians;
+        my $dlon = ( $self->lon - $lon ) * $radians;
+        my $a = sin( $dlat / 2 )** 2 
+		+ cos( $self->lat * $radians ) 
+		* cos( $lat * $radians ) 
+                * sin( $dlon / 2 )**2;
+        my $c = 2 * __asin( sqrt( $a ) );
+
+        return $radius * $c; 
+}
+
 
 1;
 

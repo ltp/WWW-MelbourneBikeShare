@@ -84,6 +84,29 @@ sub __get_service_uri {
 	return 'https://data.melbourne.vic.gov.au/resource/qnjw-wgaj.json';
 }
 
+sub __data {
+	my $self = shift;
+
+	$self->__get_service_data;
+
+	return @{ $self->{ __cache }->{ data } }
+}
+
+sub __sort_by {
+	my ( $self, $attr, @args ) = @_;
+
+	my @t = map  { $_->[0] }
+		sort { $a->[1] <=> $b->[1] }
+		map  { [ $_, $_->$attr( @args ) ] } 
+		     $self->terminals;
+
+	return @t
+}
+
+sub terminals {
+	return $_[0]->__data
+}
+
 sub id {
 	my ( $self, $id ) = @_;
 	
@@ -94,103 +117,109 @@ sub id {
 	}
 }
 
-sub __data {
-	my $self = shift;
-
-	$self->__get_service_data;
-
-	return @{ $self->{ __cache }->{ data } }
-}
-
-sub terminals {
-	return $_[0]->__data
-}
-
 sub list {
 	return map { $_->id } $_[0]->terminals
+}
+
+sub by_distance {
+	my ( $self, $lat, $lon ) = @_;
+
+	return unless $lat and $lon;
+
+	return $self->__sort_by( 'distance', $lat, $lon );
+}
+
+sub by_id {
+	my $self = shift;
+
+	return $self->__sort_by( 'id' )
+}
+
+sub by_terminal {
+	my $self = shift;
+
+	return $self->__sort_by( 'terminal' )
+}
+
+sub by_available_bikes {
+	my $self = shift;
+
+	return reverse $self->__sort_by( 'bikes' )
+}
+
+sub by_available_docks {
+	my $self = shift;
+
+	return reverse $self->__sort_by( 'empty' )
 }
 
 sub closest {
 	my ( $self, $lat, $lon ) = @_;
 
-	my @t = map  { $_->[0] }
-		sort { $a->[1] <=> $b->[1] }
-		map  { [ $_, __haversine( $lat, $lon, $_->lat, $_->lon ) ] } 
-		     $self->terminals;
-
-	return $t[0]
-}
-
-sub __asin { 
-	my $x = shift; 
-	atan2( $x, sqrt( 1 - $x * $x ) ) 
-}
- 
-sub __haversine {
-	my( $lat1, $lon1, $lat2, $lon2 ) = @_;
-
-	my $radius = 6372.8;
-	my $radians = ( 22 / 7 ) / 180;
-	my $dlat = ( $lat2 - $lat1 ) * $radians;
-	my $dlon = ( $lon2 - $lon1 ) * $radians;
-	$lat1 *= $radians;
-	$lat2 *= $radians;
-	my $a = sin( $dlat / 2 )** 2 + cos( $lat1 ) * cos( $lat2 ) 
-		* sin( $dlon / 2 )**2;
-	my $c = 2 * __asin( sqrt( $a ) );
-
-	return $radius * $c;
+	return ( $self->by_distance( $lat, $lon ) )[0]
 }
 
 1;
-
-#        {   
-#                "coordinates" : 
-#                {   
-#                        "type" : "Point", 
-#                        "coordinates": [ 144.946051,-37.842174 ]
-#                },  
-#                "featurename" : "Gasworks Arts Park - Pickles St - Albert Park",
-#                "id" : "30",
-#                "nbbikes" : "1",
-#                "nbemptydoc" : "10",
-#                "terminalname" : "60023",
-#                "uploaddate" : "2017-01-20T01:30:06.000"
-#        }, 
 
 __END__
 
 =head1 NAME
 
-WWW::MelbourneBikeShare - The great new WWW::MelbourneBikeShare!
-
-
+WWW::MelbourneBikeShare - Simple interface to the Melbourne Bike Share open
+data set.
 
 =head1 SYNOPSIS
 
-Quick summary of what the module does.
+This module provides a simple interface to the Melbourne Bike Share open data 
+set (L<https://data.melbourne.vic.gov.au/Transport-Movement/Melbourne-bike-share/tdvh-n9dv>).
+
+The Melbourne Bike Share open data set provides up to date information on the 
+number of available bikes and slots available at each Melbourne Bike Share
+terminal.  The data set also provides terminal metadata including; the terminal 
+friendly name, the terminal ID, the terminal geographical co-ordinates, and a
+time stamp indicating the time at which the terminal data was last updated.
 
 	use WWW::MelbourneBikeShare;
 
-	my $mbs = WWW::MelbourneBikeShare->new();
+	my $mbs = WWW::MelbourneBikeShare->new;
 
-	$mbs->nearest();
+	# Get a list of all Melbourne Bike Share terminals as an array of
+	# WWW::MelbourneBikeShare::Terminal objects.
 
-	$mbs->list();
+	my @terminals = $mbs->terminals;
 
-	$mbs->by_available_bikes()
-	$mbs->by_empty_docks()
-    ...
+	# Print the ID, name, and number of bikes available at each terminal.
+	
+	map { 
+		printf( "%-3s %-65 %-4s\n", $_->id, $_->name, $_->bikes )
+	} @terminals;
+
+	# Do the same thing, but order the list by the number of available bikes.
+	map {
+		printf( "%-3s %-65 %-4s\n", $_->id, $_->name, $_->bikes 
+	} $mbs->by_available_bikes;
+
+	# Or, by proximity to our current location.
+	map { 
+		printf( "%-3s %-65 %-4s\n", $_->id, $_->name, $_->bikes 
+	} $mbs->by_distance( -37.816181, 144.952688 );
+
+	# Get our closest terminal.
+	$mbs->nearest( -37.816181, 144.952688 );
+
+	...
 
 =head1 METHODS
 
-=head2 function1
+=head2 new ( )
+
+Constructor method - creates 
 
 =head2 function2
 
 =head1 AUTHOR
 
-Luke Poksitt, C<< <ltp at cpan.org> >>
+Luke Poskitt, C<< <ltp at cpan.org> >>
 
 =head1 BUGS
 
@@ -227,13 +256,13 @@ L<http://search.cpan.org/dist/WWW-MelbourneBikeShare/>
 
 =back
 
+=item * Melbourne Bike Share open data set
 
-=head1 ACKNOWLEDGEMENTS
-
+L<https://data.melbourne.vic.gov.au/Transport-Movement/Melbourne-bike-share/tdvh-n9dv>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2017 Luke Poksitt.
+Copyright 2017 Luke Poskitt.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the the Artistic License (2.0). You may obtain a
