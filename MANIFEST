@@ -1,8 +1,10 @@
 Changes
 lib/WWW/MelbourneBikeShare.pm
+lib/WWW/MelbourneBikeShare/Terminal.pm
 Makefile.PL
-MANIFEST			This list of files
+MANIFEST
 README
+README.md
 t/00-load.t
 t/manifest.t
 t/pod-coverage.t
