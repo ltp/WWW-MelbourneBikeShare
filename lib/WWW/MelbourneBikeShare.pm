@@ -103,22 +103,34 @@ sub __sort_by {
 	return @t
 }
 
+sub __grep {
+	my ( $self, $var, $val ) = @_;
+
+	$val and $var or return;
+
+	for ( $self->terminals ) {
+		return $_ if $_->$var eq $val
+	}
+}
+
+sub refresh {
+	$_->{ cache }->{ present } = 0
+}
+
 sub terminals {
 	return $_[0]->__data
 }
 
 sub id {
 	my ( $self, $id ) = @_;
-	
-	$id or return;
 
-	for ( $self->terminals ) {
-		return $_ if $_->id eq $id
-	}
+	return $self->__grep( 'id', $id )
 }
 
-sub list {
-	return map { $_->id } $_[0]->terminals
+sub terminal {
+	my ( $self, $terminal ) = @_;
+
+	return $self->__grep( 'terminal', $terminal )
 }
 
 sub by_distance {
@@ -211,11 +223,79 @@ time stamp indicating the time at which the terminal data was last updated.
 
 =head1 METHODS
 
-=head2 new ( )
+=head2 new ( cache => $CACHE_TIME )
 
-Constructor method - creates 
+Constructor method - creates a new WWW::MelbourneBikeShare object.  
 
-=head2 function2
+Accepts one optional parameter: B<cache> which allows the caller to specify the
+maximum cache time for retrieved data.
+
+The data set is currently updated every fifteen minutes and typically within a
+short period following the quarter hour interval (e.g. 09:00, 09:15, 09:30, 09:45).
+If no cache parameter is supplied to the constructor, then a maximum cache 
+duration of 900s will be used - this reduces the volume of requests required to
+be made to the data provider.
+
+Under most circumstances, it should not be necessary to provide a cache 
+argument to the constructor as the default value should be sufficient.  If you
+explicitly want to refresh the cache (e.g. you are using a local time source to
+determine the update interval) then you may explicitly invalidate the cache by
+callling the L</refresh> method.
+
+=head2 refresh
+
+Explicitly invalidate the local cache and cause the data set to be retrieved 
+from the data provider.
+
+=head1 terminals
+
+Get a list of all Melbourne bike share terminals as an array of 
+L<WWW::MelbourneBikeShare::Terminal> objects.  The order of the terminals is
+the same as is returned in the data set by the provider.
+
+=head1 by_id 
+
+Get a list of all Melbourne bike share terminals as an array of 
+L<WWW::MelbourneBikeShare::Terminal> objects ordered by id. Note that the B<id>
+is different to the terminal id value returned by the B<terminal> method.
+
+=head1 by_terminal
+
+Get a list of all Melbourne bike share terminals as an array of 
+L<WWW::MelbourneBikeShare::Terminal> objects ordered by terminal id.
+
+=head1 by_available_bikes 
+
+Get a list of all Melbourne bike share terminals as an array of 
+L<WWW::MelbourneBikeShare::Terminal> objects ordered by the number of available
+bikes.
+
+=head1 by_available_docks 
+
+Get a list of all Melbourne bike share terminals as an array of 
+L<WWW::MelbourneBikeShare::Terminal> objects ordered by the number of available
+bike docks.
+
+=head1 by_distance ( $LAT, $LON )
+
+Get a list of all Melbourne bike share terminals as an array of 
+L<WWW::MelbourneBikeShare::Terminal> objects ordered by distance from the 
+provided geographical co-ordinates.
+
+=head1 id ( $ID )
+
+Return the terminal with the given ID as a L<WWW::MelbourneBikeShare::Terminal>
+object.
+
+=head1 terminal
+
+Return the terminal with the given terminal ID as a 
+L<WWW::MelbourneBikeShare::Terminal> object.
+
+=head1 closest  ( $LAT, $LON )
+Return the geographically nearest terminal as a 
+L<WWW::MelbourneBikeShare::Terminal> object via distance from the provided
+geographical co-ordinates.
 
 =head1 AUTHOR
 
@@ -232,7 +312,6 @@ automatically be notified of progress on your bug as I make changes.
 You can find documentation for this module with the perldoc command.
 
     perldoc WWW::MelbourneBikeShare
-
 
 You can also look for information at:
 
@@ -259,6 +338,10 @@ L<http://search.cpan.org/dist/WWW-MelbourneBikeShare/>
 =item * Melbourne Bike Share open data set
 
 L<https://data.melbourne.vic.gov.au/Transport-Movement/Melbourne-bike-share/tdvh-n9dv>
+
+=head1 SEE ALSO
+
+L<WWW::MelbourneBikeShare>
 
 =head1 LICENSE AND COPYRIGHT
 
